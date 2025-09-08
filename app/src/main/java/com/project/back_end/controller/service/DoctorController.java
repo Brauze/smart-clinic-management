@@ -1,19 +1,21 @@
 package com.project.back_end.controller;
 
+import com.project.back_end.dto.DoctorDTO;
+import com.project.back_end.dto.DoctorAvailabilityDTO;
+import com.project.back_end.dto.LoginRequestDTO;
+import com.project.back_end.dto.ApiResponseDTO;
 import com.project.back_end.model.Doctor;
 import com.project.back_end.service.DoctorService;
 import com.project.back_end.service.TokenService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/doctors")
@@ -26,167 +28,225 @@ public class DoctorController {
     @Autowired
     private TokenService tokenService;
     
+    /**
+     * Get all doctors
+     */
     @GetMapping
-    public ResponseEntity<?> getAllDoctors() {
-        try {
-            List<Doctor> doctors = doctorService.getAllDoctors();
-            return ResponseEntity.ok(doctors);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
-    
-    @GetMapping("/{id}")
-    public ResponseEntity<?> getDoctorById(@PathVariable Long id) {
-        return doctorService.getDoctorById(id)
-                .map(doctor -> ResponseEntity.ok(doctor))
-                .orElse(ResponseEntity.notFound().build());
-    }
-    
-    @GetMapping("/availability/{doctorId}")
-    public ResponseEntity<?> getDoctorAvailability(
-            @PathVariable Long doctorId,
-            @RequestParam LocalDate date,
+    public ResponseEntity<ApiResponseDTO<List<DoctorDTO>>> getAllDoctors(
             @RequestHeader("Authorization") String token) {
-        
         try {
             // Validate token
-            String actualToken = token.replace("Bearer ", "");
-            if (!tokenService.validateToken(actualToken)) {
+            if (!tokenService.validateToken(token.replace("Bearer ", ""))) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Invalid token"));
+                    .body(new ApiResponseDTO<>(false, "Invalid or expired token", null));
             }
             
-            List<LocalDateTime> availableTimes = doctorService.getAvailableTimesForDate(doctorId, date);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("doctorId", doctorId);
-            response.put("date", date);
-            response.put("availableTimes", availableTimes);
-            
-            return ResponseEntity.ok(response);
+            List<DoctorDTO> doctors = doctorService.getAllDoctors();
+            return ResponseEntity.ok(
+                new ApiResponseDTO<>(true, "Doctors retrieved successfully", doctors)
+            );
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
+                .body(new ApiResponseDTO<>(false, "Error retrieving doctors: " + e.getMessage(), null));
         }
     }
     
+    /**
+     * Get doctor availability for a specific date and specialty
+     */
+    @GetMapping("/availability")
+    public ResponseEntity<ApiResponseDTO<List<DoctorAvailabilityDTO>>> getDoctorAvailability(
+            @RequestHeader("Authorization") String token,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) String specialty,
+            @RequestParam(required = false) String timeSlot) {
+        try {
+            // Validate token
+            String jwtToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(jwtToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiResponseDTO<>(false, "Invalid or expired token", null));
+            }
+            
+            // Get available doctors for the specified criteria
+            List<DoctorAvailabilityDTO> availability = doctorService.getDoctorAvailability(date, specialty, timeSlot);
+            
+            if (availability.isEmpty()) {
+                return ResponseEntity.ok(
+                    new ApiResponseDTO<>(true, "No doctors available for the specified criteria", availability)
+                );
+            }
+            
+            return ResponseEntity.ok(
+                new ApiResponseDTO<>(true, "Doctor availability retrieved successfully", availability)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponseDTO<>(false, "Error retrieving doctor availability: " + e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Get doctor by specialty
+     */
     @GetMapping("/specialty/{specialty}")
-    public ResponseEntity<?> getDoctorsBySpecialty(
-            @PathVariable String specialty,
-            @RequestParam(required = false) LocalDateTime time) {
-        
-        try {
-            List<Doctor> doctors;
-            if (time != null) {
-                doctors = doctorService.getDoctorsBySpecialtyAndTime(specialty, time);
-            } else {
-                doctors = doctorService.getDoctorsBySpecialty(specialty);
-            }
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("specialty", specialty);
-            response.put("doctors", doctors);
-            if (time != null) {
-                response.put("time", time);
-            }
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
-    
-    @PostMapping
-    public ResponseEntity<?> createDoctor(
-            @Valid @RequestBody Doctor doctor,
-            @RequestHeader("Authorization") String token) {
-        
-        try {
-            // Validate token and check admin role
-            String actualToken = token.replace("Bearer ", "");
-            if (!tokenService.validateToken(actualToken)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Invalid token"));
-            }
-            
-            String role = tokenService.extractRole(actualToken);
-            if (!"ADMIN".equals(role)) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(Map.of("error", "Only admins can create doctors"));
-            }
-            
-            Doctor createdDoctor = doctorService.createDoctor(doctor);
-            return ResponseEntity.status(HttpStatus.CREATED).body(createdDoctor);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
-    
-    @PutMapping("/{id}")
-    public ResponseEntity<?> updateDoctor(
-            @PathVariable Long id,
-            @Valid @RequestBody Doctor doctor,
-            @RequestHeader("Authorization") String token) {
-        
+    public ResponseEntity<ApiResponseDTO<List<DoctorDTO>>> getDoctorsBySpecialty(
+            @RequestHeader("Authorization") String token,
+            @PathVariable String specialty) {
         try {
             // Validate token
-            String actualToken = token.replace("Bearer ", "");
-            if (!tokenService.validateToken(actualToken)) {
+            if (!tokenService.validateToken(token.replace("Bearer ", ""))) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Invalid token"));
+                    .body(new ApiResponseDTO<>(false, "Invalid or expired token", null));
             }
             
-            Doctor updatedDoctor = doctorService.updateDoctor(id, doctor);
-            if (updatedDoctor != null) {
-                return ResponseEntity.ok(updatedDoctor);
+            List<DoctorDTO> doctors = doctorService.getDoctorsBySpecialty(specialty);
+            return ResponseEntity.ok(
+                new ApiResponseDTO<>(true, "Doctors retrieved successfully", doctors)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponseDTO<>(false, "Error retrieving doctors by specialty: " + e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Get doctor by ID
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponseDTO<DoctorDTO>> getDoctorById(
+            @RequestHeader("Authorization") String token,
+            @PathVariable Long id) {
+        try {
+            // Validate token
+            if (!tokenService.validateToken(token.replace("Bearer ", ""))) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiResponseDTO<>(false, "Invalid or expired token", null));
+            }
+            
+            DoctorDTO doctor = doctorService.getDoctorById(id);
+            if (doctor == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponseDTO<>(false, "Doctor not found", null));
+            }
+            
+            return ResponseEntity.ok(
+                new ApiResponseDTO<>(true, "Doctor retrieved successfully", doctor)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponseDTO<>(false, "Error retrieving doctor: " + e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Doctor login
+     */
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponseDTO<String>> doctorLogin(@Valid @RequestBody LoginRequestDTO loginRequest) {
+        try {
+            ApiResponseDTO<String> response = doctorService.authenticateDoctor(loginRequest.getEmail(), loginRequest.getPassword());
+            
+            if (response.isSuccess()) {
+                return ResponseEntity.ok(response);
             } else {
-                return ResponseEntity.notFound().build();
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponseDTO<>(false, "Login error: " + e.getMessage(), null));
         }
     }
     
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteDoctor(
-            @PathVariable Long id,
-            @RequestHeader("Authorization") String token) {
-        
+    /**
+     * Add new doctor (Admin only)
+     */
+    @PostMapping
+    public ResponseEntity<ApiResponseDTO<DoctorDTO>> addDoctor(
+            @RequestHeader("Authorization") String token,
+            @Valid @RequestBody DoctorDTO doctorDTO) {
         try {
-            // Validate token and check admin role
-            String actualToken = token.replace("Bearer ", "");
-            if (!tokenService.validateToken(actualToken)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Invalid token"));
-            }
-            
-            String role = tokenService.extractRole(actualToken);
-            if (!"ADMIN".equals(role)) {
+            // Validate token and check if user is admin
+            String jwtToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(jwtToken) || !tokenService.isAdmin(jwtToken)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(Map.of("error", "Only admins can delete doctors"));
+                    .body(new ApiResponseDTO<>(false, "Admin access required", null));
             }
             
-            doctorService.deleteDoctor(id);
-            return ResponseEntity.ok(Map.of("message", "Doctor deleted successfully"));
+            DoctorDTO savedDoctor = doctorService.saveDoctor(doctorDTO);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ApiResponseDTO<>(true, "Doctor created successfully", savedDoctor));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
+                .body(new ApiResponseDTO<>(false, "Error creating doctor: " + e.getMessage(), null));
         }
     }
     
-    @GetMapping("/search")
-    public ResponseEntity<?> searchDoctors(@RequestParam String name) {
+    /**
+     * Update doctor information
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponseDTO<DoctorDTO>> updateDoctor(
+            @RequestHeader("Authorization") String token,
+            @PathVariable Long id,
+            @Valid @RequestBody DoctorDTO doctorDTO) {
         try {
-            List<Doctor> doctors = doctorService.searchDoctorsByName(name);
-            return ResponseEntity.ok(doctors);
+            // Validate token
+            String jwtToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(jwtToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiResponseDTO<>(false, "Invalid or expired token", null));
+            }
+            
+            // Check if the user is admin or the doctor themselves
+            String userEmail = tokenService.getEmailFromToken(jwtToken);
+            if (!tokenService.isAdmin(jwtToken) && !doctorService.isDoctorEmail(userEmail, id)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponseDTO<>(false, "Access denied", null));
+            }
+            
+            DoctorDTO updatedDoctor = doctorService.updateDoctor(id, doctorDTO);
+            if (updatedDoctor == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponseDTO<>(false, "Doctor not found", null));
+            }
+            
+            return ResponseEntity.ok(
+                new ApiResponseDTO<>(true, "Doctor updated successfully", updatedDoctor)
+            );
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
+                .body(new ApiResponseDTO<>(false, "Error updating doctor: " + e.getMessage(), null));
+        }
+    }
+    
+    /**
+     * Delete doctor (Admin only)
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponseDTO<Void>> deleteDoctor(
+            @RequestHeader("Authorization") String token,
+            @PathVariable Long id) {
+        try {
+            // Validate token and check if user is admin
+            String jwtToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(jwtToken) || !tokenService.isAdmin(jwtToken)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponseDTO<>(false, "Admin access required", null));
+            }
+            
+            boolean deleted = doctorService.deleteDoctor(id);
+            if (!deleted) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponseDTO<>(false, "Doctor not found", null));
+            }
+            
+            return ResponseEntity.ok(
+                new ApiResponseDTO<>(true, "Doctor deleted successfully", null)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponseDTO<>(false, "Error deleting doctor: " + e.getMessage(), null));
         }
     }
 }
