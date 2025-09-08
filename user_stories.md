@@ -1,60 +1,106 @@
-### user_stories.md
-```markdown
-# User Stories for Smart Clinic Management System
+Smart Clinic Management System - User Stories
+Admin User Stories
+Story 1: Manage Doctor Accounts
+As an Admin
+I want to add, edit, and remove doctor accounts
+So that I can maintain an up-to-date list of healthcare providers in the system
 
-## Admin User Stories
+Acceptance Criteria:
 
-1. **As an Admin**, I want to add new doctors to the system so that patients can book appointments with them.
-   - Acceptance Criteria: Admin can enter doctor details (name, email, specialty) and save to database
+Admin can add new doctors with specialty, contact info, and availability
+Admin can edit existing doctor information
+Admin can deactivate doctor accounts
+Admin can view all registered doctors
+Story 2: System Access Control
+As an Admin
+I want to manage user access permissions
+So that I can ensure system security and proper role assignments
 
-2. **As an Admin**, I want to view a list of all doctors so that I can manage the clinic staff.
-   - Acceptance Criteria: Display paginated list with search and filter by specialty
+Acceptance Criteria:
 
-3. **As an Admin**, I want to delete doctors from the system so that I can remove inactive staff.
-   - Acceptance Criteria: Soft delete with confirmation dialog, cascade handling for appointments
+Admin can assign roles (Doctor, Patient, Admin)
+Admin can reset user passwords
+Admin can view system usage logs
+Story 3: Generate Reports
+As an Admin
+I want to generate system reports
+So that I can analyze clinic performance and usage statistics
 
-4. **As an Admin**, I want to monitor system activity so that I can track usage and performance.
-   - Acceptance Criteria: View logs, user activities, and appointment statistics
+Acceptance Criteria:
 
-5. **As an Admin**, I want to manage patient records so that I can maintain accurate clinic data.
-   - Acceptance Criteria: CRUD operations on patient data with validation
+Admin can generate daily appointment reports
+Admin can view doctor utilization reports
+Admin can export data in multiple formats
+Patient User Stories
+Story 4: Book Appointments
+As a Patient
+I want to book appointments with available doctors
+So that I can receive medical care when needed
 
-## Patient User Stories
+Acceptance Criteria:
 
-1. **As a Patient**, I want to register an account so that I can access the clinic services.
-   - Acceptance Criteria: Registration form with email verification
+Patient can search doctors by specialty
+Patient can view doctor availability
+Patient can book available time slots
+Patient receives confirmation of booking
+Story 5: Manage Personal Information
+As a Patient
+I want to update my personal and contact information
+So that the clinic has current details for communication
 
-2. **As a Patient**, I want to search for doctors by specialty so that I can find the right healthcare provider.
-   - Acceptance Criteria: Search bar with filters for specialty, availability, and name
+Acceptance Criteria:
 
-3. **As a Patient**, I want to book appointments with doctors so that I can receive medical care.
-   - Acceptance Criteria: Calendar view showing available slots, booking confirmation
+Patient can edit profile information
+Patient can update emergency contacts
+Patient can view medical history
+Story 6: View Appointments
+As a Patient
+I want to view my upcoming and past appointments
+So that I can track my medical visits and prepare accordingly
 
-4. **As a Patient**, I want to view my appointment history so that I can track my medical visits.
-   - Acceptance Criteria: List of past and upcoming appointments with details
+Acceptance Criteria:
 
-5. **As a Patient**, I want to view my prescriptions so that I can follow my treatment plan.
-   - Acceptance Criteria: List of prescriptions with medication details and instructions
+Patient can see upcoming appointments
+Patient can view appointment history
+Patient can cancel future appointments (within policy)
+Doctor User Stories
+Story 7: Manage Availability
+As a Doctor
+I want to set my availability schedule
+So that patients can book appointments during my working hours
 
-6. **As a Patient**, I want to cancel appointments so that I can reschedule when needed.
-   - Acceptance Criteria: Cancel button with confirmation, automatic slot release
+Acceptance Criteria:
 
-## Doctor User Stories
+Doctor can set weekly availability patterns
+Doctor can block specific dates/times
+Doctor can view their schedule
+Story 8: View Patient Appointments
+As a Doctor
+I want to view my scheduled patient appointments
+So that I can prepare for consultations and manage my time
 
-1. **As a Doctor**, I want to login to my dashboard so that I can manage my practice.
-   - Acceptance Criteria: Secure login with JWT token authentication
+Acceptance Criteria:
 
-2. **As a Doctor**, I want to set my available times so that patients can book appointments.
-   - Acceptance Criteria: Calendar interface to set weekly availability patterns
+Doctor can see daily appointment schedule
+Doctor can view patient details for each appointment
+Doctor can access patient medical history
+Story 9: Prescribe Medication
+As a Doctor
+I want to create and manage prescriptions for patients
+So that I can provide appropriate medical treatment
 
-3. **As a Doctor**, I want to view my appointments so that I can prepare for patient visits.
-   - Acceptance Criteria: Daily/weekly/monthly view with patient details
+Acceptance Criteria:
 
-4. **As a Doctor**, I want to create prescriptions for patients so that I can provide treatment.
-   - Acceptance Criteria: Prescription form with medication database, dosage calculator
+Doctor can create new prescriptions
+Doctor can specify medication, dosage, and duration
+Doctor can view prescription history for patients
+Story 10: Patient Medical Records
+As a Doctor
+I want to access and update patient medical records
+So that I can provide informed medical care and track patient progress
 
-5. **As a Doctor**, I want to view patient medical history so that I can make informed decisions.
-   - Acceptance Criteria: Access to past appointments, prescriptions, and notes
+Acceptance Criteria:
 
-6. **As a Doctor**, I want to update appointment status so that I can track completed visits.
-   - Acceptance Criteria: Status update buttons (completed, cancelled, no-show)
+Doctor can view patient medical history
+Doctor can add notes to patient records
+Doctor can update diagnosis and treatment plans
