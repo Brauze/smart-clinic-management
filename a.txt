@@ -1,0 +1,2185 @@
+schema-design.md
+markdown# Database Schema Design
+
+## MySQL Database Design
+
+### 1. admin Table
+```sql
+CREATE TABLE admin (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+2. doctor Table
+sqlCREATE TABLE doctor (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    specialty VARCHAR(100) NOT NULL,
+    phone VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT email_format CHECK (email REGEXP '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$')
+);
+3. patient Table
+sqlCREATE TABLE patient (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    address VARCHAR(255),
+    date_of_birth DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+4. appointment Table
+sqlCREATE TABLE appointment (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    doctor_id BIGINT NOT NULL,
+    patient_id BIGINT NOT NULL,
+    appointment_time DATETIME NOT NULL,
+    duration_minutes INT DEFAULT 30,
+    status VARCHAR(20) DEFAULT 'SCHEDULED',
+    reason VARCHAR(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (doctor_id) REFERENCES doctor(id) ON DELETE CASCADE,
+    FOREIGN KEY (patient_id) REFERENCES patient(id) ON DELETE CASCADE,
+    CONSTRAINT unique_appointment UNIQUE (doctor_id, appointment_time),
+    CONSTRAINT valid_status CHECK (status IN ('SCHEDULED', 'COMPLETED', 'CANCELLED'))
+);
+5. doctor_available_times Table
+sqlCREATE TABLE doctor_available_times (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    doctor_id BIGINT NOT NULL,
+    available_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    FOREIGN KEY (doctor_id) REFERENCES doctor(id) ON DELETE CASCADE,
+    CONSTRAINT valid_time_range CHECK (end_time > start_time)
+);
+MongoDB Collection Design
+prescriptions Collection
+json{
+  "_id": "ObjectId",
+  "appointmentId": 12345,
+  "patientName": "John Doe",
+  "patientId": 67890,
+  "doctorName": "Dr. Smith",
+  "doctorId": 11111,
+  "prescriptionDate": "2025-01-15T10:30:00Z",
+  "medications": [
+    {
+      "name": "Amoxicillin",
+      "dosage": "500mg",
+      "frequency": "3 times daily",
+      "duration": "7 days",
+      "instructions": "Take with food"
+    },
+    {
+      "name": "Ibuprofen",
+      "dosage": "400mg",
+      "frequency": "As needed",
+      "duration": "5 days",
+      "instructions": "Maximum 3 doses per day"
+    }
+  ],
+  "diagnosis": "Upper respiratory infection",
+  "notes": "Follow up if symptoms persist after 7 days",
+  "nextVisit": "2025-01-29T10:00:00Z"
+}
+feedback Collection
+json{
+  "_id": "ObjectId",
+  "patientId": 67890,
+  "doctorId": 11111,
+  "appointmentId": 12345,
+  "rating": 5,
+  "comment": "Excellent consultation, very thorough",
+  "timestamp": "2025-01-15T14:00:00Z"
+}
+logs Collection
+json{
+  "_id": "ObjectId",
+  "userId": 11111,
+  "userType": "doctor",
+  "action": "LOGIN",
+  "timestamp": "2025-01-15T09:00:00Z",
+  "ipAddress": "192.168.1.100",
+  "userAgent": "Mozilla/5.0...",
+  "additionalData": {
+    "sessionId": "abc123xyz",
+    "loginMethod": "password"
+  }
+}
+
+### user_stories.md
+```markdown
+# User Stories for Smart Clinic Management System
+
+## Admin User Stories
+
+1. **As an Admin**, I want to add new doctors to the system so that patients can book appointments with them.
+   - Acceptance Criteria: Admin can enter doctor details (name, email, specialty) and save to database
+
+2. **As an Admin**, I want to view a list of all doctors so that I can manage the clinic staff.
+   - Acceptance Criteria: Display paginated list with search and filter by specialty
+
+3. **As an Admin**, I want to delete doctors from the system so that I can remove inactive staff.
+   - Acceptance Criteria: Soft delete with confirmation dialog, cascade handling for appointments
+
+4. **As an Admin**, I want to monitor system activity so that I can track usage and performance.
+   - Acceptance Criteria: View logs, user activities, and appointment statistics
+
+5. **As an Admin**, I want to manage patient records so that I can maintain accurate clinic data.
+   - Acceptance Criteria: CRUD operations on patient data with validation
+
+## Patient User Stories
+
+1. **As a Patient**, I want to register an account so that I can access the clinic services.
+   - Acceptance Criteria: Registration form with email verification
+
+2. **As a Patient**, I want to search for doctors by specialty so that I can find the right healthcare provider.
+   - Acceptance Criteria: Search bar with filters for specialty, availability, and name
+
+3. **As a Patient**, I want to book appointments with doctors so that I can receive medical care.
+   - Acceptance Criteria: Calendar view showing available slots, booking confirmation
+
+4. **As a Patient**, I want to view my appointment history so that I can track my medical visits.
+   - Acceptance Criteria: List of past and upcoming appointments with details
+
+5. **As a Patient**, I want to view my prescriptions so that I can follow my treatment plan.
+   - Acceptance Criteria: List of prescriptions with medication details and instructions
+
+6. **As a Patient**, I want to cancel appointments so that I can reschedule when needed.
+   - Acceptance Criteria: Cancel button with confirmation, automatic slot release
+
+## Doctor User Stories
+
+1. **As a Doctor**, I want to login to my dashboard so that I can manage my practice.
+   - Acceptance Criteria: Secure login with JWT token authentication
+
+2. **As a Doctor**, I want to set my available times so that patients can book appointments.
+   - Acceptance Criteria: Calendar interface to set weekly availability patterns
+
+3. **As a Doctor**, I want to view my appointments so that I can prepare for patient visits.
+   - Acceptance Criteria: Daily/weekly/monthly view with patient details
+
+4. **As a Doctor**, I want to create prescriptions for patients so that I can provide treatment.
+   - Acceptance Criteria: Prescription form with medication database, dosage calculator
+
+5. **As a Doctor**, I want to view patient medical history so that I can make informed decisions.
+   - Acceptance Criteria: Access to past appointments, prescriptions, and notes
+
+6. **As a Doctor**, I want to update appointment status so that I can track completed visits.
+   - Acceptance Criteria: Status update buttons (completed, cancelled, no-show)
+2. Backend Java Files
+pom.xml
+xml<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.1.0</version>
+    </parent>
+    
+    <groupId>com.project</groupId>
+    <artifactId>clinic-management-system</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    
+    <properties>
+        <java.version>17</java.version>
+    </properties>
+    
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.33</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.11.5</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.11.5</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.11.5</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+application.properties
+properties# Server Configuration
+server.port=8080
+
+# MySQL Configuration
+spring.datasource.url=jdbc:mysql://localhost:3306/cms?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
+spring.datasource.username=root
+spring.datasource.password=password
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+# JPA Configuration
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+spring.jpa.properties.hibernate.format_sql=true
+
+# MongoDB Configuration
+spring.data.mongodb.uri=mongodb://localhost:27017/clinic_db
+spring.data.mongodb.database=clinic_db
+
+# Thymeleaf Configuration
+spring.thymeleaf.prefix=classpath:/templates/
+spring.thymeleaf.suffix=.html
+spring.thymeleaf.mode=HTML
+spring.thymeleaf.encoding=UTF-8
+spring.thymeleaf.cache=false
+
+# Static Resources
+spring.mvc.static-path-pattern=/static/**
+spring.web.resources.static-locations=classpath:/static/
+
+# JWT Configuration
+jwt.secret=ThisIsAVerySecureSecretKeyForJWTTokenGenerationPleaseChangeInProduction
+jwt.expiration=86400000
+
+# File Upload
+spring.servlet.multipart.max-file-size=10MB
+spring.servlet.multipart.max-request-size=10MB
+BackEndApplication.java
+javapackage com.project.back_end;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
+
+@SpringBootApplication
+@EnableJpaRepositories(basePackages = "com.project.back_end.repository")
+@EnableMongoRepositories(basePackages = "com.project.back_end.repository")
+public class BackEndApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(BackEndApplication.class, args);
+    }
+}
+Model Classes
+Doctor.java
+javapackage com.project.back_end.model;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.ArrayList;
+
+@Entity
+@Table(name = "doctor")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Doctor {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @NotNull(message = "Name is required")
+    @Size(min = 2, max = 100, message = "Name must be between 2 and 100 characters")
+    @JsonProperty("name")
+    private String name;
+    
+    @NotNull(message = "Email is required")
+    @Email(message = "Invalid email format")
+    @Column(unique = true)
+    @JsonProperty("email")
+    private String email;
+    
+    @NotNull(message = "Password is required")
+    @Size(min = 6, message = "Password must be at least 6 characters")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
+    
+    @NotNull(message = "Specialty is required")
+    @JsonProperty("specialty")
+    private String specialty;
+    
+    @JsonProperty("phone")
+    private String phone;
+    
+    @ElementCollection
+    @CollectionTable(name = "doctor_available_times", 
+                     joinColumns = @JoinColumn(name = "doctor_id"))
+    @Column(name = "available_time")
+    @JsonProperty("availableTimes")
+    private List<LocalDateTime> availableTimes = new ArrayList<>();
+    
+    @Column(name = "created_at")
+    @JsonProperty("createdAt")
+    private LocalDateTime createdAt;
+    
+    @OneToMany(mappedBy = "doctor", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private List<Appointment> appointments = new ArrayList<>();
+    
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+    
+    public void addAvailableTime(LocalDateTime time) {
+        if (availableTimes == null) {
+            availableTimes = new ArrayList<>();
+        }
+        availableTimes.add(time);
+    }
+}
+Patient.java
+javapackage com.project.back_end.model;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.ArrayList;
+
+@Entity
+@Table(name = "patient")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Patient {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @NotNull(message = "Name is required")
+    @JsonProperty("name")
+    private String name;
+    
+    @NotNull(message = "Email is required")
+    @Email(message = "Invalid email format")
+    @Column(unique = true)
+    @JsonProperty("email")
+    private String email;
+    
+    @NotNull(message = "Password is required")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
+    
+    @JsonProperty("phone")
+    private String phone;
+    
+    @JsonProperty("address")
+    private String address;
+    
+    @Past(message = "Date of birth must be in the past")
+    @JsonProperty("dateOfBirth")
+    private LocalDate dateOfBirth;
+    
+    @Column(name = "created_at")
+    @JsonProperty("createdAt")
+    private LocalDateTime createdAt;
+    
+    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private List<Appointment> appointments = new ArrayList<>();
+    
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+Appointment.java
+javapackage com.project.back_end.model;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Future;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "appointment")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Appointment {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "doctor_id", nullable = false)
+    @NotNull(message = "Doctor is required")
+    @JsonProperty("doctor")
+    private Doctor doctor;
+    
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "patient_id", nullable = false)
+    @NotNull(message = "Patient is required")
+    @JsonProperty("patient")
+    private Patient patient;
+    
+    @NotNull(message = "Appointment time is required")
+    @Future(message = "Appointment time must be in the future")
+    @Column(name = "appointment_time")
+    @JsonProperty("appointmentTime")
+    private LocalDateTime appointmentTime;
+    
+    @Column(name = "duration_minutes")
+    @JsonProperty("durationMinutes")
+    private Integer durationMinutes = 30;
+    
+    @Enumerated(EnumType.STRING)
+    @JsonProperty("status")
+    private AppointmentStatus status = AppointmentStatus.SCHEDULED;
+    
+    @JsonProperty("reason")
+    private String reason;
+    
+    @Column(name = "created_at")
+    @JsonProperty("createdAt")
+    private LocalDateTime createdAt;
+    
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        if (status == null) {
+            status = AppointmentStatus.SCHEDULED;
+        }
+    }
+    
+    public LocalDateTime getEndTime() {
+        if (appointmentTime != null && durationMinutes != null) {
+            return appointmentTime.plusMinutes(durationMinutes);
+        }
+        return appointmentTime;
+    }
+    
+    public enum AppointmentStatus {
+        SCHEDULED, COMPLETED, CANCELLED
+    }
+}
+Admin.java
+javapackage com.project.back_end.model;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "admin")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Admin {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @NotNull(message = "Username is required")
+    @Column(unique = true)
+    @JsonProperty("username")
+    private String username;
+    
+    @NotNull(message = "Password is required")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
+    
+    @NotNull(message = "Email is required")
+    @Email(message = "Invalid email format")
+    @Column(unique = true)
+    @JsonProperty("email")
+    private String email;
+    
+    @Column(name = "created_at")
+    @JsonProperty("createdAt")
+    private LocalDateTime createdAt;
+    
+    @Column(name = "updated_at")
+    @JsonProperty("updatedAt")
+    private LocalDateTime updatedAt;
+    
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}
+Prescription.java (MongoDB Document)
+javapackage com.project.back_end.model;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Document(collection = "prescriptions")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Prescription {
+    
+    @Id
+    private String id;
+    
+    @JsonProperty("appointmentId")
+    private Long appointmentId;
+    
+    @JsonProperty("patientName")
+    private String patientName;
+    
+    @JsonProperty("patientId")
+    private Long patientId;
+    
+    @JsonProperty("doctorName")
+    private String doctorName;
+    
+    @JsonProperty("doctorId")
+    private Long doctorId;
+    
+    @JsonProperty("prescriptionDate")
+    private LocalDateTime prescriptionDate;
+    
+    @JsonProperty("medications")
+    private List<Medication> medications;
+    
+    @JsonProperty("diagnosis")
+    private String diagnosis;
+    
+    @JsonProperty("notes")
+    private String notes;
+    
+    @JsonProperty("nextVisit")
+    private LocalDateTime nextVisit;
+    
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Medication {
+        private String name;
+        private String dosage;
+        private String frequency;
+        private String duration;
+        private String instructions;
+    }
+}
+Repository Classes
+PatientRepository.java
+javapackage com.project.back_end.repository;
+
+import com.project.back_end.model.Patient;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+import java.util.List;
+
+@Repository
+public interface PatientRepository extends JpaRepository<Patient, Long> {
+    
+    Optional<Patient> findByEmail(String email);
+    
+    @Query("SELECT p FROM Patient p WHERE p.email = :email")
+    Optional<Patient> findPatientByEmail(@Param("email") String email);
+    
+    List<Patient> findByNameContainingIgnoreCase(String name);
+    
+    boolean existsByEmail(String email);
+    
+    @Query("SELECT p FROM Patient p WHERE p.phone = :phone")
+    Optional<Patient> findByPhone(@Param("phone") String phone);
+}
+DoctorRepository.java
+javapackage com.project.back_end.repository;
+
+import com.project.back_end.model.Doctor;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface DoctorRepository extends JpaRepository<Doctor, Long> {
+    
+    Optional<Doctor> findByEmail(String email);
+    
+    List<Doctor> findBySpecialty(String specialty);
+    
+    List<Doctor> findByNameContainingIgnoreCase(String name);
+    
+    @Query("SELECT d FROM Doctor d WHERE d.specialty = :specialty AND :time MEMBER OF d.availableTimes")
+    List<Doctor> findBySpecialtyAndAvailableTime(@Param("specialty") String specialty, 
+                                                  @Param("time") LocalDateTime time);
+    
+    @Query("SELECT DISTINCT d.specialty FROM Doctor d")
+    List<String> findAllSpecialties();
+    
+    boolean existsByEmail(String email);
+}
+AppointmentRepository.java
+javapackage com.project.back_end.repository;
+
+import com.project.back_end.model.Appointment;
+import com.project.back_end.model.Doctor;
+import com.project.back_end.model.Patient;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
+    
+    List<Appointment> findByPatient(Patient patient);
+    
+    List<Appointment> findByDoctor(Doctor doctor);
+    
+    List<Appointment> findByDoctorAndAppointmentTimeBetween(Doctor doctor, 
+                                                            LocalDateTime start, 
+                                                            LocalDateTime end);
+    
+    List<Appointment> findByPatientAndStatus(Patient patient, Appointment.AppointmentStatus status);
+    
+    @Query("SELECT a FROM Appointment a WHERE a.doctor.id = :doctorId AND DATE(a.appointmentTime) = DATE(:date)")
+    List<Appointment> findByDoctorAndDate(@Param("doctorId") Long doctorId, 
+                                          @Param("date") LocalDateTime date);
+    
+    boolean existsByDoctorAndAppointmentTime(Doctor doctor, LocalDateTime appointmentTime);
+}
+AdminRepository.java
+javapackage com.project.back_end.repository;
+
+import com.project.back_end.model.Admin;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface AdminRepository extends JpaRepository<Admin, Long> {
+    
+    Optional<Admin> findByUsername(String username);
+    
+    Optional<Admin> findByEmail(String email);
+    
+    boolean existsByUsername(String username);
+    
+    boolean existsByEmail(String email);
+}
+PrescriptionRepository.java
+javapackage com.project.back_end.repository;
+
+import com.project.back_end.model.Prescription;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface PrescriptionRepository extends MongoRepository<Prescription, String> {
+    
+    List<Prescription> findByPatientId(Long patientId);
+    
+    List<Prescription> findByDoctorId(Long doctorId);
+    
+    List<Prescription> findByAppointmentId(Long appointmentId);
+    
+    List<Prescription> findByPatientName(String patientName);
+}
+Service Classes
+TokenService.java
+javapackage com.project.back_end.service;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import javax.crypto.SecretKey;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+@Service
+public class TokenService {
+    
+    @Value("${jwt.secret}")
+    private String secret;
+    
+    @Value("${jwt.expiration}")
+    private Long expiration;
+    
+    public String generateToken(String email) {
+        Map<String, Object> claims = new HashMap<>();
+        return createToken(claims, email);
+    }
+    
+    public String generateTokenWithRole(String email, String role) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("role", role);
+        return createToken(claims, email);
+    }
+    
+    private String createToken(Map<String, Object> claims, String subject) {
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(subject)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+    
+    public SecretKey getSigningKey() {
+        byte[] keyBytes = secret.getBytes();
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
+    
+    public Boolean validateToken(String token) {
+        try {
+            Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    public String extractEmail(String token) {
+        return extractClaim(token).getSubject();
+    }
+    
+    public String extractRole(String token) {
+        Claims claims = extractClaim(token);
+        return (String) claims.get("role");
+    }
+    
+    private Claims extractClaim(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+    
+    public Boolean isTokenExpired(String token) {
+        return extractClaim(token).getExpiration().before(new Date());
+    }
+}
+DoctorService.java
+javapackage com.project.back_end.service;
+
+import com.project.back_end.model.Doctor;
+import com.project.back_end.model.Appointment;
+import com.project.back_end.repository.DoctorRepository;
+import com.project.back_end.repository.AppointmentRepository;
+import com.project.back_end.dto.LoginDTO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+public class DoctorService {
+    
+    @Autowired
+    private DoctorRepository doctorRepository;
+    
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+    
+    @Autowired
+    private TokenService tokenService;
+    
+    public Doctor createDoctor(Doctor doctor) {
+        return doctorRepository.save(doctor);
+    }
+    
+    public List<Doctor> getAllDoctors() {
+        return doctorRepository.findAll();
+    }
+    
+    public Optional<Doctor> getDoctorById(Long id) {
+        return doctorRepository.findById(id);
+    }
+    
+    public List<Doctor> getDoctorsBySpecialty(String specialty) {
+        return doctorRepository.findBySpecialty(specialty);
+    }
+    
+    public List<Doctor> searchDoctorsByName(String name) {
+        return doctorRepository.findByNameContainingIgnoreCase(name);
+    }
+    
+    public List<LocalDateTime> getAvailableTimesForDate(Long doctorId, LocalDate date) {
+        Optional<Doctor> doctorOpt = doctorRepository.findById(doctorId);
+        if (doctorOpt.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        Doctor doctor = doctorOpt.get();
+        List<LocalDateTime> availableTimes = doctor.getAvailableTimes();
+        
+        // Filter times for the specified date
+        List<LocalDateTime> timesForDate = availableTimes.stream()
+            .filter(time -> time.toLocalDate().equals(date))
+            .collect(Collectors.toList());
+        
+        // Remove times that already have appointments
+        List<Appointment> appointments = appointmentRepository
+            .findByDoctorAndAppointmentTimeBetween(doctor, 
+                date.atStartOfDay(), 
+                date.atTime(LocalTime.MAX));
+        
+        Set<LocalDateTime> bookedTimes = appointments.stream()
+            .map(Appointment::getAppointmentTime)
+            .collect(Collectors.toSet());
+        
+        return timesForDate.stream()
+            .filter(time -> !bookedTimes.contains(time))
+            .sorted()
+            .collect(Collectors.toList());
+    }
+    
+    public Map<String, Object> validateDoctorLogin(LoginDTO loginDTO) {
+        Map<String, Object> response = new HashMap<>();
+        
+        Optional<Doctor> doctorOpt = doctorRepository.findByEmail(loginDTO.getEmail());
+        if (doctorOpt.isEmpty()) {
+            response.put("success", false);
+            response.put("message", "Invalid email or password");
+            return response;
+        }
+        
+        Doctor doctor = doctorOpt.get();
+        if (!doctor.getPassword().equals(loginDTO.getPassword())) {
+            response.put("success", false);
+            response.put("message", "Invalid email or password");
+            return response;
+        }
+        
+        String token = tokenService.generateTokenWithRole(doctor.getEmail(), "DOCTOR");
+        response.put("success", true);
+        response.put("token", token);
+        response.put("doctor", doctor);
+        response.put("message", "Login successful");
+        
+        return response;
+    }
+    
+    public void deleteDoctor(Long id) {
+        doctorRepository.deleteById(id);
+    }
+    
+    public Doctor updateDoctor(Long id, Doctor doctorDetails) {
+        Optional<Doctor> doctorOpt = doctorRepository.findById(id);
+        if (doctorOpt.isPresent()) {
+            Doctor doctor = doctorOpt.get();
+            doctor.setName(doctorDetails.getName());
+            doctor.setSpecialty(doctorDetails.getSpecialty());
+            doctor.setPhone(doctorDetails.getPhone());
+            doctor.setAvailableTimes(doctorDetails.getAvailableTimes());
+            return doctorRepository.save(doctor);
+        }
+        return null;
+    }
+    
+    public List<Doctor> getDoctorsBySpecialtyAndTime(String specialty, LocalDateTime time) {
+        return doctorRepository.findBySpecialtyAndAvailableTime(specialty, time);
+    }
+}
+AppointmentService.java
+javapackage com.project.back_end.service;
+
+import com.project.back_end.model.Appointment;
+import com.project.back_end.model.Doctor;
+import com.project.back_end.model.Patient;
+import com.project.back_end.repository.AppointmentRepository;
+import com.project.back_end.repository.DoctorRepository;
+import com.project.back_end.repository.PatientRepository;
+import com.project.back_end.dto.AppointmentDTO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class AppointmentService {
+    
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+    
+    @Autowired
+    private DoctorRepository doctorRepository;
+    
+    @Autowired
+    private PatientRepository patientRepository;
+    
+    public Appointment bookAppointment(AppointmentDTO appointmentDTO) {
+        Optional<Doctor> doctorOpt = doctorRepository.findById(appointmentDTO.getDoctorId());
+        Optional<Patient> patientOpt = patientRepository.findById(appointmentDTO.getPatientId());
+        
+        if (doctorOpt.isEmpty() || patientOpt.isEmpty()) {
+            throw new RuntimeException("Doctor or Patient not found");
+        }
+        
+        Doctor doctor = doctorOpt.get();
+        Patient patient = patientOpt.get();
+        
+        // Check if the time slot is already booked
+        if (appointmentRepository.existsByDoctorAndAppointmentTime(doctor, appointmentDTO.getAppointmentTime())) {
+            throw new RuntimeException("This time slot is already booked");
+        }
+        
+        Appointment appointment = new Appointment();
+        appointment.setDoctor(doctor);
+        appointment.setPatient(patient);
+        appointment.setAppointmentTime(appointmentDTO.getAppointmentTime());
+        appointment.setReason(appointmentDTO.getReason());
+        appointment.setDurationMinutes(appointmentDTO.getDurationMinutes() != null ? 
+                                       appointmentDTO.getDurationMinutes() : 30);
+        
+        return appointmentRepository.save(appointment);
+    }
+    
+    public List<Appointment> getAppointmentsByDoctorAndDate(Long doctorId, LocalDateTime date) {
+        return appointmentRepository.findByDoctorAndDate(doctorId, date);
+    }
+    
+    public List<Appointment> getAppointmentsByPatient(Long patientId) {
+        Optional<Patient> patientOpt = patientRepository.findById(patientId);
+        if (patientOpt.isEmpty()) {
+            return List.of();
+        }
+        return appointmentRepository.findByPatient(patientOpt.get());
+    }
+    
+    public List<Appointment> getAppointmentsByDoctor(Long doctorId) {
+        Optional<Doctor> doctorOpt = doctorRepository.findById(doctorId);
+        if (doctorOpt.isEmpty()) {
+            return List.of();
+        }
+        return appointmentRepository.findByDoctor(doctorOpt.get());
+    }
+    
+    public Appointment updateAppointmentStatus(Long appointmentId, Appointment.AppointmentStatus status) {
+        Optional<Appointment> appointmentOpt = appointmentRepository.findById(appointmentId);
+        if (appointmentOpt.isPresent()) {
+            Appointment appointment = appointmentOpt.get();
+            appointment.setStatus(status);
+            return appointmentRepository.save(appointment);
+        }
+        return null;
+    }
+    
+    public void cancelAppointment(Long appointmentId) {
+        updateAppointmentStatus(appointmentId, Appointment.AppointmentStatus.CANCELLED);
+    }
+    
+    public List<Appointment> getAllAppointments() {
+        return appointmentRepository.findAll();
+    }
+}
+PatientService.java
+javapackage com.project.back_end.service;
+
+import com.project.back_end.model.Patient;
+import com.project.back_end.repository.PatientRepository;
+import com.project.back_end.dto.LoginDTO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+
+@Service
+public class PatientService {
+    
+    @Autowired
+    private PatientRepository patientRepository;
+    
+    @Autowired
+    private TokenService tokenService;
+    
+    public Patient createPatient(Patient patient) {
+        if (patientRepository.existsByEmail(patient.getEmail())) {
+            throw new RuntimeException("Email already exists");
+        }
+        return patientRepository.save(patient);
+    }
+    
+    public List<Patient> getAllPatients() {
+        return patientRepository.findAll();
+    }
+    
+    public Optional<Patient> getPatientById(Long id) {
+        return patientRepository.findById(id);
+    }
+    
+    public Optional<Patient> getPatientByEmail(String email) {
+        return patientRepository.findByEmail(email);
+    }
+    
+    public List<Patient> searchPatientsByName(String name) {
+        return patientRepository.findByNameContainingIgnoreCase(name);
+    }
+    
+    public Map<String, Object> validatePatientLogin(LoginDTO loginDTO) {
+        Map<String, Object> response = new HashMap<>();
+        
+        Optional<Patient> patientOpt = patientRepository.findByEmail(loginDTO.getEmail());
+        if (patientOpt.isEmpty()) {
+            response.put("success", false);
+            response.put("message", "Invalid email or password");
+            return response;
+        }
+        
+        Patient patient = patientOpt.get();
+        if (!patient.getPassword().equals(loginDTO.getPassword())) {
+            response.put("success", false);
+            response.put("message", "Invalid email or password");
+            return response;
+        }
+        
+        String token = tokenService.generateTokenWithRole(patient.getEmail(), "PATIENT");
+        response.put("success", true);
+        response.put("token", token);
+        response.put("patient", patient);
+        response.put("message", "Login successful");
+        
+        return response;
+    }
+    
+    public Patient updatePatient(Long id, Patient patientDetails) {
+        Optional<Patient> patientOpt = patientRepository.findById(id);
+        if (patientOpt.isPresent()) {
+            Patient patient = patientOpt.get();
+            patient.setName(patientDetails.getName());
+            patient.setPhone(patientDetails.getPhone());
+            patient.setAddress(patientDetails.getAddress());
+            patient.setDateOfBirth(patientDetails.getDateOfBirth());
+            return patientRepository.save(patient);
+        }
+        return null;
+    }
+    
+    public void deletePatient(Long id) {
+        patientRepository.deleteById(id);
+    }
+}
+PrescriptionService.java
+javapackage com.project.back_end.service;
+
+import com.project.back_end.model.Prescription;
+import com.project.back_end.repository.PrescriptionRepository;
+import com.project.back_end.dto.PrescriptionDTO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class PrescriptionService {
+    
+    @Autowired
+    private PrescriptionRepository prescriptionRepository;
+    
+    public Prescription createPrescription(PrescriptionDTO prescriptionDTO) {
+        Prescription prescription = new Prescription();
+        prescription.setAppointmentId(prescriptionDTO.getAppointmentId());
+        prescription.setPatientName(prescriptionDTO.getPatientName());
+        prescription.setPatientId(prescriptionDTO.getPatientId());
+        prescription.setDoctorName(prescriptionDTO.getDoctorName());
+        prescription.setDoctorId(prescriptionDTO.getDoctorId());
+        prescription.setPrescriptionDate(LocalDateTime.now());
+        prescription.setMedications(prescriptionDTO.getMedications());
+        prescription.setDiagnosis(prescriptionDTO.getDiagnosis());
+        prescription.setNotes(prescriptionDTO.getNotes());
+        prescription.setNextVisit(prescriptionDTO.getNextVisit());
+        
+        return prescriptionRepository.save(prescription);
+    }
+    
+    public List<Prescription> getPrescriptionsByPatientId(Long patientId) {
+        return prescriptionRepository.findByPatientId(patientId);
+    }
+    
+    public List<Prescription> getPrescriptionsByDoctorId(Long doctorId) {
+        return prescriptionRepository.findByDoctorId(doctorId);
+    }
+    
+    public Optional<Prescription> getPrescriptionById(String id) {
+        return prescriptionRepository.findById(id);
+    }
+    
+    public List<Prescription> getPrescriptionsByAppointmentId(Long appointmentId) {
+        return prescriptionRepository.findByAppointmentId(appointmentId);
+    }
+    
+    public List<Prescription> getAllPrescriptions() {
+        return prescriptionRepository.findAll();
+    }
+    
+    public void deletePrescription(String id) {
+        prescriptionRepository.deleteById(id);
+    }
+}
+AdminService.java
+javapackage com.project.back_end.service;
+
+import com.project.back_end.model.Admin;
+import com.project.back_end.repository.AdminRepository;
+import com.project.back_end.dto.LoginDTO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+
+@Service
+public class AdminService {
+    
+    @Autowired
+    private AdminRepository adminRepository;
+    
+    @Autowired
+    private TokenService tokenService;
+    
+    public Admin createAdmin(Admin admin) {
+        if (adminRepository.existsByUsername(admin.getUsername())) {
+            throw new RuntimeException("Username already exists");
+        }
+        if (adminRepository.existsByEmail(admin.getEmail())) {
+            throw new RuntimeException("Email already exists");
+        }
+        return adminRepository.save(admin);
+    }
+    
+    public Map<String, Object> validateAdminLogin(LoginDTO loginDTO) {
+        Map<String, Object> response = new HashMap<>();
+        
+        Optional<Admin> adminOpt = adminRepository.findByEmail(loginDTO.getEmail());
+        if (adminOpt.isEmpty()) {
+            response.put("success", false);
+            response.put("message", "Invalid email or password");
+            return response;
+        }
+        
+        Admin admin = adminOpt.get();
+        if (!admin.getPassword().equals(loginDTO.getPassword())) {
+            response.put("success", false);
+            response.put("message", "Invalid email or password");
+            return response;
+        }
+        
+        String token = tokenService.generateTokenWithRole(admin.getEmail(), "ADMIN");
+        response.put("success", true);
+        response.put("token", token);
+        response.put("admin", admin);
+        response.put("message", "Login successful");
+        
+        return response;
+    }
+    
+    public List<Admin> getAllAdmins() {
+        return adminRepository.findAll();
+    }
+    
+    public Optional<Admin> getAdminById(Long id) {
+        return adminRepository.findById(id);
+    }
+}
+Controller Classes
+DoctorController.java
+javapackage com.project.back_end.controller;
+
+import com.project.back_end.model.Doctor;
+import com.project.back_end.service.DoctorService;
+import com.project.back_end.service.TokenService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/doctors")
+@CrossOrigin(origins = "*")
+public class DoctorController {
+    
+    @Autowired
+    private DoctorService doctorService;
+    
+    @Autowired
+    private TokenService tokenService;
+    
+    @GetMapping
+    public ResponseEntity<?> getAllDoctors() {
+        try {
+            List<Doctor> doctors = doctorService.getAllDoctors();
+            return ResponseEntity.ok(doctors);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getDoctorById(@PathVariable Long id) {
+        return doctorService.getDoctorById(id)
+                .map(doctor -> ResponseEntity.ok(doctor))
+                .orElse(ResponseEntity.notFound().build());
+    }
+    
+    @GetMapping("/availability/{doctorId}")
+    public ResponseEntity<?> getDoctorAvailability(
+            @PathVariable Long doctorId,
+            @RequestParam LocalDate date,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            List<LocalDateTime> availableTimes = doctorService.getAvailableTimesForDate(doctorId, date);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("doctorId", doctorId);
+            response.put("date", date);
+            response.put("availableTimes", availableTimes);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/specialty/{specialty}")
+    public ResponseEntity<?> getDoctorsBySpecialty(
+            @PathVariable String specialty,
+            @RequestParam(required = false) LocalDateTime time) {
+        
+        try {
+            List<Doctor> doctors;
+            if (time != null) {
+                doctors = doctorService.getDoctorsBySpecialtyAndTime(specialty, time);
+            } else {
+                doctors = doctorService.getDoctorsBySpecialty(specialty);
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("specialty", specialty);
+            response.put("doctors", doctors);
+            if (time != null) {
+                response.put("time", time);
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @PostMapping
+    public ResponseEntity<?> createDoctor(
+            @Valid @RequestBody Doctor doctor,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token and check admin role
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            String role = tokenService.extractRole(actualToken);
+            if (!"ADMIN".equals(role)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Only admins can create doctors"));
+            }
+            
+            Doctor createdDoctor = doctorService.createDoctor(doctor);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdDoctor);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateDoctor(
+            @PathVariable Long id,
+            @Valid @RequestBody Doctor doctor,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            Doctor updatedDoctor = doctorService.updateDoctor(id, doctor);
+            if (updatedDoctor != null) {
+                return ResponseEntity.ok(updatedDoctor);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteDoctor(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token and check admin role
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            String role = tokenService.extractRole(actualToken);
+            if (!"ADMIN".equals(role)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Only admins can delete doctors"));
+            }
+            
+            doctorService.deleteDoctor(id);
+            return ResponseEntity.ok(Map.of("message", "Doctor deleted successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/search")
+    public ResponseEntity<?> searchDoctors(@RequestParam String name) {
+        try {
+            List<Doctor> doctors = doctorService.searchDoctorsByName(name);
+            return ResponseEntity.ok(doctors);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+}
+PrescriptionController.java
+javapackage com.project.back_end.controller;
+
+import com.project.back_end.model.Prescription;
+import com.project.back_end.service.PrescriptionService;
+import com.project.back_end.service.TokenService;
+import com.project.back_end.dto.PrescriptionDTO;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/prescriptions")
+@CrossOrigin(origins = "*")
+public class PrescriptionController {
+    
+    @Autowired
+    private PrescriptionService prescriptionService;
+    
+    @Autowired
+    private TokenService tokenService;
+    
+    @PostMapping
+    public ResponseEntity<?> createPrescription(
+            @Valid @RequestBody PrescriptionDTO prescriptionDTO,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            // Check if user is a doctor
+            String role = tokenService.extractRole(actualToken);
+            if (!"DOCTOR".equals(role)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Only doctors can create prescriptions"));
+            }
+            
+            Prescription prescription = prescriptionService.createPrescription(prescriptionDTO);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(Map.of(
+                        "success", true,
+                        "message", "Prescription created successfully",
+                        "prescription", prescription
+                    ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of(
+                        "success", false,
+                        "error", e.getMessage()
+                    ));
+        }
+    }
+    
+    @GetMapping("/patient/{patientId}")
+    public ResponseEntity<?> getPrescriptionsByPatient(
+            @PathVariable Long patientId,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            List<Prescription> prescriptions = prescriptionService.getPrescriptionsByPatientId(patientId);
+            return ResponseEntity.ok(prescriptions);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/doctor/{doctorId}")
+    public ResponseEntity<?> getPrescriptionsByDoctor(
+            @PathVariable Long doctorId,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            List<Prescription> prescriptions = prescriptionService.getPrescriptionsByDoctorId(doctorId);
+            return ResponseEntity.ok(prescriptions);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/appointment/{appointmentId}")
+    public ResponseEntity<?> getPrescriptionsByAppointment(
+            @PathVariable Long appointmentId,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            List<Prescription> prescriptions = prescriptionService.getPrescriptionsByAppointmentId(appointmentId);
+            return ResponseEntity.ok(prescriptions);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getPrescriptionById(
+            @PathVariable String id,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            return prescriptionService.getPrescriptionById(id)
+                    .map(prescription -> ResponseEntity.ok(prescription))
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deletePrescription(
+            @PathVariable String id,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            // Check if user is a doctor
+            String role = tokenService.extractRole(actualToken);
+            if (!"DOCTOR".equals(role) && !"ADMIN".equals(role)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Unauthorized to delete prescriptions"));
+            }
+            
+            prescriptionService.deletePrescription(id);
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Prescription deleted successfully"
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                        "success", false,
+                        "error", e.getMessage()
+                    ));
+        }
+    }
+}
+Let me continue with the remaining controller files and other necessary components:
+PatientController.java
+javapackage com.project.back_end.controller;
+
+import com.project.back_end.model.Patient;
+import com.project.back_end.model.Appointment;
+import com.project.back_end.service.PatientService;
+import com.project.back_end.service.AppointmentService;
+import com.project.back_end.service.TokenService;
+import com.project.back_end.dto.LoginDTO;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/patients")
+@CrossOrigin(origins = "*")
+public class PatientController {
+    
+    @Autowired
+    private PatientService patientService;
+    
+    @Autowired
+    private AppointmentService appointmentService;
+    
+    @Autowired
+    private TokenService tokenService;
+    
+    @PostMapping("/register")
+    public ResponseEntity<?> registerPatient(@Valid @RequestBody Patient patient) {
+        try {
+            Patient createdPatient = patientService.createPatient(patient);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdPatient);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @PostMapping("/login")
+    public ResponseEntity<?> loginPatient(@Valid @RequestBody LoginDTO loginDTO) {
+        try {
+            Map<String, Object> response = patientService.validatePatientLogin(loginDTO);
+            if ((Boolean) response.get("success")) {
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/{id}/appointments")
+    public ResponseEntity<?> getPatientAppointments(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            List<Appointment> appointments = appointmentService.getAppointmentsByPatient(id);
+            return ResponseEntity.ok(appointments);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @GetMapping
+    public ResponseEntity<?> getAllPatients(@RequestHeader("Authorization") String token) {
+        try {
+            // Validate token and check admin role
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            String role = tokenService.extractRole(actualToken);
+            if (!"ADMIN".equals(role)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Only admins can view all patients"));
+            }
+            
+            List<Patient> patients = patientService.getAllPatients();
+            return ResponseEntity.ok(patients);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getPatientById(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            return patientService.getPatientById(id)
+                    .map(patient -> ResponseEntity.ok(patient))
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+}
+AppointmentController.java
+javapackage com.project.back_end.controller;
+
+import com.project.back_end.model.Appointment;
+import com.project.back_end.service.AppointmentService;
+import com.project.back_end.service.TokenService;
+import com.project.back_end.dto.AppointmentDTO;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/appointments")
+@CrossOrigin(origins = "*")
+public class AppointmentController {
+    
+    @Autowired
+    private AppointmentService appointmentService;
+    
+    @Autowired
+    private TokenService tokenService;
+    
+    @PostMapping
+    public ResponseEntity<?> bookAppointment(
+            @Valid @RequestBody AppointmentDTO appointmentDTO,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            Appointment appointment = appointmentService.bookAppointment(appointmentDTO);
+            return ResponseEntity.status(HttpStatus.CREATED).body(appointment);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/doctor/{doctorId}")
+    public ResponseEntity<?> getAppointmentsByDoctor(
+            @PathVariable Long doctorId,
+            @RequestParam(required = false) LocalDateTime date,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            List<Appointment> appointments;
+            if (date != null) {
+                appointments = appointmentService.getAppointmentsByDoctorAndDate(doctorId, date);
+            } else {
+                appointments = appointmentService.getAppointmentsByDoctor(doctorId);
+            }
+            
+            return ResponseEntity.ok(appointments);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/patient/{patientId}")
+    public ResponseEntity<?> getAppointmentsByPatient(
+            @PathVariable Long patientId,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            List<Appointment> appointments = appointmentService.getAppointmentsByPatient(patientId);
+            return ResponseEntity.ok(appointments);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @PutMapping("/{id}/status")
+    public ResponseEntity<?> updateAppointmentStatus(
+            @PathVariable Long id,
+            @RequestParam Appointment.AppointmentStatus status,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            Appointment updatedAppointment = appointmentService.updateAppointmentStatus(id, status);
+            if (updatedAppointment != null) {
+                return ResponseEntity.ok(updatedAppointment);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> cancelAppointment(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Validate token
+            String actualToken = token.replace("Bearer ", "");
+            if (!tokenService.validateToken(actualToken)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid token"));
+            }
+            
+            appointmentService.cancelAppointment(id);
+            return ResponseEntity.ok(Map.of("message", "Appointment cancelled successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+}
+AuthController.java
+javapackage com.project.back_end.controller;
+
+import com.project.back_end.service.AdminService;
+import com.project.back_end.service.DoctorService;
+import com.project.back_end.service.PatientService;
+import com.project.back_end.dto.LoginDTO;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/auth")
+@CrossOrigin(origins = "*")
+public class AuthController {
+    
+    @Autowired
+    private AdminService adminService;
+    
+    @Autowired
+    private DoctorService doctorService;
+    
+    @Autowired
+    private PatientService patientService;
+    
+    @PostMapping("/login/admin")
+    public ResponseEntity<?> loginAdmin(@Valid @RequestBody LoginDTO loginDTO) {
+        try {
+            Map<String, Object> response = adminService.validateAdminLogin(loginDTO);
+            if ((Boolean) response.get("success")) {
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @PostMapping("/login/doctor")
+    public ResponseEntity<?> loginDoctor(@Valid @RequestBody LoginDTO loginDTO) {
+        try {
+            Map<String, Object> response = doctorService.validateDoctorLogin(loginDTO);
+            if ((Boolean) response.get("success")) {
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @PostMapping("/login/patient")
+    public ResponseEntity<?> loginPatient(@Valid @RequestBody LoginDTO loginDTO) {
+        try {
+            Map<String, Object> response = patientService.validatePatientLogin(loginDTO);
+            if ((Boolean) response.get("success")) {
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+}
+MVC Controller
+DashboardController.java
+javapackage com.project.back_end.mvc;
+
+import com.project.back_end.service.TokenService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+@Controller
+public class DashboardController {
+    
+    @Autowired
+    private TokenService tokenService;
+    
+    @GetMapping("/")
+    public String index() {
+        return "index";
+    }
+    
+    @GetMapping("/adminDashboard/{token}")
+    public String adminDashboard(@PathVariable String token) {
+        try {
+            if (tokenService.validateToken(token)) {
+                String role = tokenService.extractRole(token);
+                if ("ADMIN".equals(role)) {
+                    return "admin/adminDashboard";
+                }
+            }
+        } catch (Exception e) {
+            // Log error
+        }
+        return "redirect:/";
+    }
+    
+    @GetMapping("/doctorDashboard/{token}")
+    public String doctorDashboard(@PathVariable String token) {
+        try {
+            if (tokenService.validateToken(token)) {
+                String role = tokenService.extractRole(token);
+                if ("DOCTOR".equals(role)) {
+                    return "doctor/doctorDashboard";
+                }
+            }
+        } catch (Exception e) {
+            // Log error
+        }
+        return "redirect:/";
+    }
+    
+    @GetMapping("/patientDashboard/{token}")
+    public String patientDashboard(@PathVariable String token) {
+        try {
+            if (tokenService.validateToken(token)) {
+                String role = tokenService.extractRole(token);
+                if ("PATIENT".equals(role)) {
+                    return "patient/patientDashboard";
+                }
+            }
+        } catch (Exception e) {
+            // Log error
+        }
+        return "redirect:/";
+    }
+}
+DTO Classes
+LoginDTO.java
+javapackage com.project.back_end.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
+
+@Data
+public class LoginDTO {
+    
+    @NotBlank(message = "Email is required")
+    @Email(message = "Invalid email format")
+    private String email;
+    
+    @NotBlank(message = "Password is required")
+    private String password;
+}
+AppointmentDTO.java
+javapackage com.project.back_end.dto;
+
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Future;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+@Data
+public class AppointmentDTO {
+    
+    @NotNull(message = "Doctor ID is required")
+    private Long doctorId;
+    
+    @NotNull(message = "Patient ID is required")
+    private Long patientId;
+    
+    @NotNull(message = "Appointment time is required")
+    @Future(message = "Appointment time must be in the future")
+    private LocalDateTime appointmentTime;
+    
+    private String reason;
+    
+    private Integer durationMinutes = 30;
+}
+PrescriptionDTO.java
+javapackage com.project.back_end.dto;
+
+import com.project.back_end.model.Prescription;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Data
+public class PrescriptionDTO {
+    
+    @NotNull(message = "Appointment ID is required")
+    private Long appointmentId;
+    
+    @NotBlank(message = "Patient name is required")
+    private String patientName;
+    
+    @NotNull(message = "Patient ID is required")
+    private Long patientId;
+    
+    @NotBlank(message = "Doctor name is required")
+    private String doctorName;
+    
+    @NotNull(message = "Doctor ID is required")
+    private Long doctorId;
+    
+    @NotNull(message = "Medications are required")
+    private List<Prescription.Medication> medications;
+    
+    private String diagnosis;
+    
+    private String notes;
+    
+    private LocalDateTime nextVisit;
+}
+Due to the length constraints, I'll provide the remaining files (SQL scripts, HTML templates, JavaScript, Docker, and GitHub Actions) in a follow-up response. Would you like me to continue with those files?RetryClaude can make mistakes. Please double-check responses.
